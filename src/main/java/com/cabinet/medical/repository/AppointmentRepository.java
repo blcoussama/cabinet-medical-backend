@@ -228,4 +228,60 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     long countAppointmentsThisWeek(
             @Param("startOfWeek") LocalDateTime startOfWeek,
             @Param("endOfWeek") LocalDateTime endOfWeek);
+
+    // ═══════════════════════════════════════════════════════════
+    // MÉTHODES COMPATIBILITÉ APPOINTMENTSERVICE
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Trouve tous les RDV d'un médecin (sans tri)
+     * Version simplifiée pour AppointmentService
+     *
+     * @param doctor Le médecin
+     * @return Liste de ses RDV
+     */
+    List<Appointment> findByDoctor(Doctor doctor);
+
+    /**
+     * Trouve tous les RDV d'un patient (sans tri)
+     * Version simplifiée pour AppointmentService
+     *
+     * @param patient Le patient
+     * @return Liste de ses RDV
+     */
+    List<Appointment> findByPatient(Patient patient);
+
+    /**
+     * Vérifie si un créneau est occupé (version simple)
+     * Alias pour existsByDoctorAndDateTimeAndNotCancelled
+     *
+     * @param doctor   Le médecin
+     * @param dateTime La date/heure
+     * @return true si occupé, false si disponible
+     */
+    @Query("SELECT COUNT(a) > 0 FROM Appointment a " +
+            "WHERE a.doctor = :doctor " +
+            "AND a.dateTime = :dateTime " +
+            "AND a.status != 'CANCELLED'")
+    boolean existsByDoctorAndDateTime(
+            @Param("doctor") Doctor doctor,
+            @Param("dateTime") LocalDateTime dateTime);
+
+    /**
+     * Trouve RDV d'un médecin dans une période
+     * Utilisé pour filtrer heures disponibles
+     *
+     * @param doctor Médecin
+     * @param start  Début période
+     * @param end    Fin période
+     * @return Liste RDV dans la période
+     */
+    @Query("SELECT a FROM Appointment a " +
+            "WHERE a.doctor = :doctor " +
+            "AND a.dateTime BETWEEN :start AND :end " +
+            "AND a.status != 'CANCELLED'")
+    List<Appointment> findByDoctorAndDateTimeBetween(
+            @Param("doctor") Doctor doctor,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }
