@@ -2,13 +2,15 @@ package com.cabinet.medical.controller;
 
 import com.cabinet.medical.dto.request.LoginRequest;
 import com.cabinet.medical.dto.request.RegisterRequest;
-import com.cabinet.medical.dto.response.ApiResponse;
 import com.cabinet.medical.dto.response.LoginResponse;
 import com.cabinet.medical.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * AuthController - Contrôleur pour l'authentification
@@ -22,6 +24,10 @@ import org.springframework.web.bind.annotation.*;
  * - register : PUBLIC (tout le monde peut créer un compte patient)
  * - login : PUBLIC (tout le monde peut se connecter)
  * - email-exists : PUBLIC (validation frontend)
+ *
+ * FORMAT RÉPONSES:
+ * - SUCCÈS : DTOs directs (LoginResponse, etc.)
+ * - ERREURS : ErrorResponse (géré par GlobalExceptionHandler)
  *
  * ANNOTATIONS:
  * - @RestController : Contrôleur REST (retourne JSON)
@@ -63,27 +69,36 @@ public class AuthController {
      *
      * RESPONSE 201 CREATED:
      * {
+     * "token": "TODO_JWT_TOKEN",
      * "userId": 1,
-     * "patientId": 1,
      * "email": "jean@gmail.com",
      * "firstName": "Jean",
      * "lastName": "Dupont",
      * "role": "PATIENT",
-     * "token": "TODO_JWT_TOKEN"
+     * "patientId": 1,
+     * "doctorId": null
      * }
      *
-     * ERREURS:
-     * - 400 BAD REQUEST : Validation échouée (email invalide, champs vides, etc.)
-     * Géré par GlobalExceptionHandler (MethodArgumentNotValidException)
+     * ERREURS (ErrorResponse):
+     * - 400 BAD REQUEST : Validation échouée
+     * {
+     * "timestamp": "2025-12-29T16:30:45",
+     * "status": 400,
+     * "error": "Bad Request",
+     * "message": "Erreur de validation",
+     * "path": "/api/auth/register",
+     * "errors": ["email: Format d'email invalide"]
+     * }
      *
-     * - 409 CONFLICT : Email déjà utilisé (RG-01)
-     * Géré par GlobalExceptionHandler (EmailAlreadyExistsException)
-     *
-     * FLOW:
-     * 1. @Valid valide automatiquement RegisterRequest
-     * 2. AuthService.register() crée User + Patient
-     * 3. Retourne LoginResponse avec 201 CREATED
-     * 4. Si erreur → GlobalExceptionHandler intercepte
+     * - 409 CONFLICT : Email déjà utilisé
+     * {
+     * "timestamp": "2025-12-29T16:30:45",
+     * "status": 409,
+     * "error": "Conflict",
+     * "message": "Un compte existe déjà avec l'email: jean@gmail.com",
+     * "path": "/api/auth/register",
+     * "errors": null
+     * }
      *
      * @param request RegisterRequest (validé automatiquement par @Valid)
      * @return ResponseEntity<LoginResponse> avec status 201 CREATED
@@ -107,40 +122,48 @@ public class AuthController {
      *
      * RESPONSE 200 OK (Patient):
      * {
+     * "token": "TODO_JWT_TOKEN",
      * "userId": 1,
-     * "patientId": 1,
-     * "doctorId": null,
      * "email": "jean@gmail.com",
      * "firstName": "Jean",
      * "lastName": "Dupont",
      * "role": "PATIENT",
-     * "token": "TODO_JWT_TOKEN"
+     * "patientId": 1,
+     * "doctorId": null
      * }
      *
      * RESPONSE 200 OK (Doctor):
      * {
+     * "token": "TODO_JWT_TOKEN",
      * "userId": 2,
-     * "patientId": null,
-     * "doctorId": 1,
      * "email": "martin@doc.com",
      * "firstName": "Martin",
      * "lastName": "Durand",
      * "role": "DOCTOR",
-     * "token": "TODO_JWT_TOKEN"
+     * "patientId": null,
+     * "doctorId": 1
      * }
      *
-     * ERREURS:
-     * - 400 BAD REQUEST : Validation échouée (email/password vides)
-     * Géré par GlobalExceptionHandler (MethodArgumentNotValidException)
+     * ERREURS (ErrorResponse):
+     * - 400 BAD REQUEST : Validation échouée
+     * {
+     * "timestamp": "2025-12-29T16:30:45",
+     * "status": 400,
+     * "error": "Bad Request",
+     * "message": "Erreur de validation",
+     * "path": "/api/auth/login",
+     * "errors": ["email: L'email est obligatoire"]
+     * }
      *
      * - 401 UNAUTHORIZED : Email ou mot de passe incorrect
-     * Géré par GlobalExceptionHandler (InvalidCredentialsException)
-     *
-     * FLOW:
-     * 1. @Valid valide automatiquement LoginRequest
-     * 2. AuthService.login() vérifie credentials + charge role
-     * 3. Retourne LoginResponse avec 200 OK
-     * 4. Si erreur → GlobalExceptionHandler intercepte
+     * {
+     * "timestamp": "2025-12-29T16:30:45",
+     * "status": 401,
+     * "error": "Unauthorized",
+     * "message": "Email ou mot de passe incorrect",
+     * "path": "/api/auth/login",
+     * "errors": null
+     * }
      *
      * @param request LoginRequest (validé automatiquement par @Valid)
      * @return ResponseEntity<LoginResponse> avec status 200 OK
@@ -164,16 +187,14 @@ public class AuthController {
      *
      * RESPONSE 200 OK (email existe):
      * {
-     * "success": true,
-     * "message": "Email déjà utilisé",
-     * "data": true
+     * "exists": true,
+     * "message": "Email déjà utilisé"
      * }
      *
      * RESPONSE 200 OK (email disponible):
      * {
-     * "success": true,
-     * "message": "Email disponible",
-     * "data": false
+     * "exists": false,
+     * "message": "Email disponible"
      * }
      *
      * UTILISATION FRONTEND:
@@ -181,19 +202,20 @@ public class AuthController {
      * - Afficher message "Email déjà utilisé" en temps réel
      * - Désactiver bouton "S'inscrire" si email existe
      *
+     * FORMAT:
+     * Retourne un simple JSON avec 2 champs (pas de wrapper)
+     * Compatible avec le standard REST (pas de wrapper inutile)
+     *
      * @param email Email à vérifier (query parameter)
-     * @return ResponseEntity<ApiResponse<Boolean>> avec status 200 OK
+     * @return ResponseEntity<Map<String, Object>> avec status 200 OK
      */
     @GetMapping("/email-exists")
-    public ResponseEntity<ApiResponse<Boolean>> emailExists(@RequestParam String email) {
+    public ResponseEntity<Map<String, Object>> emailExists(@RequestParam String email) {
         boolean exists = authService.emailExists(email);
 
-        String message = exists ? "Email déjà utilisé" : "Email disponible";
-        ApiResponse<Boolean> response = ApiResponse.<Boolean>builder()
-                .success(true)
-                .message(message)
-                .data(exists)
-                .build();
+        Map<String, Object> response = new HashMap<>();
+        response.put("exists", exists);
+        response.put("message", exists ? "Email déjà utilisé" : "Email disponible");
 
         return ResponseEntity.ok(response);
     }

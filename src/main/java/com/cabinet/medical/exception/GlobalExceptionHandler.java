@@ -1,6 +1,6 @@
 package com.cabinet.medical.exception;
 
-import com.cabinet.medical.dto.response.ApiResponse;
+import com.cabinet.medical.dto.response.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -9,8 +9,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
-import java.util.Map;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * GlobalExceptionHandler - Gestionnaire global des exceptions
@@ -18,7 +19,7 @@ import java.util.Map;
  * RESPONSABILITÉS:
  * - Intercepter toutes les exceptions de l'application
  * - Convertir exceptions → réponses HTTP appropriées
- * - Uniformiser le format des erreurs (ApiResponse)
+ * - Uniformiser le format des erreurs (ErrorResponse)
  * - Gérer les erreurs de validation (@Valid)
  * - Logger les erreurs pour débogage
  *
@@ -26,6 +27,16 @@ import java.util.Map;
  * - @RestControllerAdvice : Intercepte exceptions de tous les @RestController
  * - @ExceptionHandler : Méthode qui gère un type d'exception spécifique
  * - @ResponseStatus : Code HTTP à retourner
+ *
+ * FORMAT ERREUR (ErrorResponse):
+ * {
+ * "timestamp": "2025-12-29T10:00:00",
+ * "status": 404,
+ * "error": "Not Found",
+ * "message": "Utilisateur non trouvé",
+ * "path": "/api/users/999",
+ * "errors": null
+ * }
  *
  * EXCEPTIONS GÉRÉES:
  * - ResourceNotFoundException → 404 NOT FOUND
@@ -51,26 +62,31 @@ public class GlobalExceptionHandler {
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "User not found with id: 123",
-     * "data": null
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 404,
+     * "error": "Not Found",
+     * "message": "Utilisateur non trouvé avec id: 123",
+     * "path": "/api/users/123",
+     * "errors": null
      * }
      *
-     * @param ex ResourceNotFoundException
-     * @return ResponseEntity<ApiResponse<Void>> avec status 404
+     * @param ex      ResourceNotFoundException
+     * @param request HttpServletRequest pour obtenir le path
+     * @return ResponseEntity<ErrorResponse> avec status 404
      */
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(
-            ResourceNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+            ResourceNotFoundException ex,
+            HttpServletRequest request) {
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .message(ex.getMessage())
-                .data(null)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                404,
+                "Not Found",
+                ex.getMessage(),
+                request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
     /**
@@ -86,26 +102,31 @@ public class GlobalExceptionHandler {
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "Email already exists: jean@gmail.com",
-     * "data": null
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 409,
+     * "error": "Conflict",
+     * "message": "Un compte existe déjà avec l'email: jean@gmail.com",
+     * "path": "/api/auth/register",
+     * "errors": null
      * }
      *
-     * @param ex EmailAlreadyExistsException
-     * @return ResponseEntity<ApiResponse<Void>> avec status 409
+     * @param ex      EmailAlreadyExistsException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 409
      */
     @ExceptionHandler(EmailAlreadyExistsException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ResponseEntity<ApiResponse<Void>> handleEmailAlreadyExistsException(
-            EmailAlreadyExistsException ex) {
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyExistsException(
+            EmailAlreadyExistsException ex,
+            HttpServletRequest request) {
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .message(ex.getMessage())
-                .data(null)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                409,
+                "Conflict",
+                ex.getMessage(),
+                request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     /**
@@ -120,27 +141,31 @@ public class GlobalExceptionHandler {
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "Time slot conflict: MONDAY 09:00-12:00 overlaps with existing
-     * slot",
-     * "data": null
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 409,
+     * "error": "Conflict",
+     * "message": "Un créneau existe déjà pour Lundi entre 09:00 et 12:00",
+     * "path": "/api/timeslots",
+     * "errors": null
      * }
      *
-     * @param ex TimeSlotConflictException
-     * @return ResponseEntity<ApiResponse<Void>> avec status 409
+     * @param ex      TimeSlotConflictException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 409
      */
     @ExceptionHandler(TimeSlotConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ResponseEntity<ApiResponse<Void>> handleTimeSlotConflictException(
-            TimeSlotConflictException ex) {
+    public ResponseEntity<ErrorResponse> handleTimeSlotConflictException(
+            TimeSlotConflictException ex,
+            HttpServletRequest request) {
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .message(ex.getMessage())
-                .data(null)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                409,
+                "Conflict",
+                ex.getMessage(),
+                request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     /**
@@ -156,27 +181,31 @@ public class GlobalExceptionHandler {
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "Appointment conflict: Dr. Martin already has appointment at
-     * 2025-12-30 14:00",
-     * "data": null
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 409,
+     * "error": "Conflict",
+     * "message": "Le créneau du 2025-12-30T14:00 est déjà réservé pour Dr. Martin",
+     * "path": "/api/appointments",
+     * "errors": null
      * }
      *
-     * @param ex AppointmentConflictException
-     * @return ResponseEntity<ApiResponse<Void>> avec status 409
+     * @param ex      AppointmentConflictException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 409
      */
     @ExceptionHandler(AppointmentConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ResponseEntity<ApiResponse<Void>> handleAppointmentConflictException(
-            AppointmentConflictException ex) {
+    public ResponseEntity<ErrorResponse> handleAppointmentConflictException(
+            AppointmentConflictException ex,
+            HttpServletRequest request) {
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .message(ex.getMessage())
-                .data(null)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                409,
+                "Conflict",
+                ex.getMessage(),
+                request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     /**
@@ -187,26 +216,31 @@ public class GlobalExceptionHandler {
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "Invalid email or password",
-     * "data": null
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 401,
+     * "error": "Unauthorized",
+     * "message": "Email ou mot de passe incorrect",
+     * "path": "/api/auth/login",
+     * "errors": null
      * }
      *
-     * @param ex InvalidCredentialsException
-     * @return ResponseEntity<ApiResponse<Void>> avec status 401
+     * @param ex      InvalidCredentialsException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 401
      */
     @ExceptionHandler(InvalidCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidCredentialsException(
-            InvalidCredentialsException ex) {
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(
+            InvalidCredentialsException ex,
+            HttpServletRequest request) {
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .message(ex.getMessage())
-                .data(null)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                401,
+                "Unauthorized",
+                ex.getMessage(),
+                request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     /**
@@ -216,44 +250,50 @@ public class GlobalExceptionHandler {
      * - Validation échouée sur @Valid @RequestBody
      *
      * EXEMPLES:
-     * - Email invalide: "Email invalide"
+     * - Email invalide: "Format d'email invalide"
      * - Champ vide: "Le prénom est obligatoire"
-     * - Mot de passe trop court: "Le mot de passe doit contenir au moins 8
+     * - Mot de passe trop court: "Le mot de passe doit contenir au moins 6
      * caractères"
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "Validation failed",
-     * "data": {
-     * "email": "Email invalide",
-     * "password": "Le mot de passe doit contenir au moins 8 caractères"
-     * }
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 400,
+     * "error": "Bad Request",
+     * "message": "Erreur de validation",
+     * "path": "/api/auth/register",
+     * "errors": [
+     * "L'email est obligatoire",
+     * "Le mot de passe doit contenir au moins 6 caractères"
+     * ]
      * }
      *
-     * @param ex MethodArgumentNotValidException
-     * @return ResponseEntity<ApiResponse<Map<String, String>>> avec status 400
+     * @param ex      MethodArgumentNotValidException
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 400
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationExceptions(
-            MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorResponse> handleValidationExceptions(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
 
-        // Extraire les erreurs de validation
-        Map<String, String> errors = new HashMap<>();
+        // Extraire les erreurs de validation dans une liste
+        List<String> errors = new ArrayList<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            errors.add(fieldName + ": " + errorMessage);
         });
 
-        ApiResponse<Map<String, String>> response = ApiResponse.<Map<String, String>>builder()
-                .success(false)
-                .message("Validation failed")
-                .data(errors)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                400,
+                "Bad Request",
+                "Erreur de validation",
+                request.getRequestURI(),
+                errors);
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     /**
@@ -266,28 +306,34 @@ public class GlobalExceptionHandler {
      *
      * RÉPONSE:
      * {
-     * "success": false,
-     * "message": "An unexpected error occurred: [message]",
-     * "data": null
+     * "timestamp": "2025-12-29T10:00:00",
+     * "status": 500,
+     * "error": "Internal Server Error",
+     * "message": "Une erreur inattendue s'est produite: [message]",
+     * "path": "/api/...",
+     * "errors": null
      * }
      *
-     * @param ex Exception
-     * @return ResponseEntity<ApiResponse<Void>> avec status 500
+     * @param ex      Exception
+     * @param request HttpServletRequest
+     * @return ResponseEntity<ErrorResponse> avec status 500
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ResponseEntity<ApiResponse<Void>> handleGlobalException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGlobalException(
+            Exception ex,
+            HttpServletRequest request) {
 
         // Logger l'erreur pour débogage
         System.err.println("ERREUR INATTENDUE: " + ex.getClass().getName());
         ex.printStackTrace();
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(false)
-                .message("An unexpected error occurred: " + ex.getMessage())
-                .data(null)
-                .build();
+        ErrorResponse error = ErrorResponse.of(
+                500,
+                "Internal Server Error",
+                "Une erreur inattendue s'est produite: " + ex.getMessage(),
+                request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }
