@@ -18,27 +18,33 @@ import java.util.Map;
  * GET /api/admin/dashboard
  *
  * CONTENU:
- * - Statistiques globales (RDV aujourd'hui, cette semaine)
- * - Répartition par status (PENDING, CONFIRMED, CANCELLED)
- * - Liste des derniers rendez-vous
- * - Statistiques médecins (nombre de médecins, patients)
+ * - Statistiques RDV (UC-A02):
+ * ├── Total RDV aujourd'hui
+ * ├── Total RDV cette semaine
+ * ├── Répartition par status (PENDING, CONFIRMED, CANCELLED)
+ * └── Liste derniers RDV créés
+ *
+ * - Statistiques utilisateurs (bonus):
+ * ├── Total médecins
+ * ├── Total patients
+ * └── Total utilisateurs
  *
  * EXEMPLE JSON:
  * {
- * "totalAppointmentsToday": 12,
- * "totalAppointmentsWeek": 87,
+ * "totalAppointmentsToday": 2,
+ * "totalAppointmentsWeek": 3,
  * "appointmentsByStatus": {
- * "PENDING": 15,
- * "CONFIRMED": 65,
- * "CANCELLED": 7
+ * "PENDING": 2,
+ * "CONFIRMED": 0,
+ * "CANCELLED": 1
  * },
  * "recentAppointments": [
  * { ... },
  * { ... }
  * ],
- * "totalDoctors": 5,
- * "totalPatients": 142,
- * "totalUsers": 148
+ * "totalDoctors": 1,
+ * "totalPatients": 2,
+ * "totalUsers": 4
  * }
  */
 @Data
@@ -48,7 +54,7 @@ import java.util.Map;
 public class DashboardResponse {
 
     // ═══════════════════════════════════════════════════════════
-    // STATISTIQUES RENDEZ-VOUS
+    // STATISTIQUES RENDEZ-VOUS (UC-A02)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -79,9 +85,9 @@ public class DashboardResponse {
      * FORMAT:
      * Map<String, Long>
      * {
-     * "PENDING": 15,
-     * "CONFIRMED": 65,
-     * "CANCELLED": 7
+     * "PENDING": 2,
+     * "CONFIRMED": 0,
+     * "CANCELLED": 1
      * }
      *
      * CALCUL:
@@ -105,7 +111,7 @@ public class DashboardResponse {
     private List<AppointmentResponse> recentAppointments;
 
     // ═══════════════════════════════════════════════════════════
-    // STATISTIQUES UTILISATEURS
+    // STATISTIQUES UTILISATEURS (Bonus - Utiles pour dashboard)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -140,46 +146,4 @@ public class DashboardResponse {
      * Affichage card "Utilisateurs"
      */
     private Long totalUsers;
-
-    // ═══════════════════════════════════════════════════════════
-    // STATISTIQUES SUPPLÉMENTAIRES (Optionnel)
-    // ═══════════════════════════════════════════════════════════
-
-    /**
-     * Total créneaux horaires configurés
-     *
-     * CALCUL:
-     * COUNT(*) FROM timeslot
-     */
-    private Long totalTimeSlots;
-
-    /**
-     * Total notifications en attente
-     *
-     * CALCUL:
-     * COUNT(*) FROM notification WHERE sent_at IS NULL
-     */
-    private Long pendingNotifications;
-
-    /**
-     * Taux de confirmation des RDV (en pourcentage)
-     *
-     * CALCUL:
-     * (COUNT(status=CONFIRMED) / COUNT(*)) * 100
-     *
-     * EXEMPLE:
-     * 65 confirmés sur 87 total = 74.71%
-     */
-    private Double confirmationRate;
-
-    /**
-     * Taux d'annulation des RDV (en pourcentage)
-     *
-     * CALCUL:
-     * (COUNT(status=CANCELLED) / COUNT(*)) * 100
-     *
-     * EXEMPLE:
-     * 7 annulés sur 87 total = 8.05%
-     */
-    private Double cancellationRate;
 }
