@@ -9,6 +9,7 @@ import com.cabinet.medical.exception.EmailAlreadyExistsException;
 import com.cabinet.medical.exception.InvalidCredentialsException;
 import com.cabinet.medical.repository.PatientRepository;
 import com.cabinet.medical.repository.UserRepository;
+import com.cabinet.medical.security.JwtUtil; // ⭐ NOUVEAU
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /**
- * AuthService - Service d'authentification et inscription
+ * AuthService - Service d'authentification et inscription (AVEC JWT)
  *
  * RESPONSABILITÉS:
  * - Inscription des patients (UC-P01)
  * - Connexion (login) de tous les utilisateurs (UC-P02, UC-D01, UC-A01)
+ * - Génération de tokens JWT ⭐ NOUVEAU
  * - Hashage sécurisé des mots de passe (BCrypt)
  * - Création automatique de l'entité Patient lors inscription
  * - Validation des identifiants
@@ -35,6 +37,7 @@ import java.time.LocalDateTime;
  * - Passwords hashés avec BCrypt (coût: 10)
  * - JAMAIS de password en clair en base
  * - Vérification hash lors login
+ * - JWT token généré et signé ⭐ NOUVEAU
  */
 @Service
 public class AuthService {
@@ -42,36 +45,42 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PatientRepository patientRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil; // ⭐ NOUVEAU
 
     /**
      * Constructeur avec injection de dépendances
      *
      * @param userRepository    Repository User
      * @param patientRepository Repository Patient
+     * @param jwtUtil           Utilitaire JWT ⭐ NOUVEAU
      */
     public AuthService(UserRepository userRepository,
-            PatientRepository patientRepository) {
+            PatientRepository patientRepository,
+            JwtUtil jwtUtil) { // ⭐ NOUVEAU paramètre
         this.userRepository = userRepository;
         this.patientRepository = patientRepository;
         this.passwordEncoder = new BCryptPasswordEncoder();
+        this.jwtUtil = jwtUtil; // ⭐ NOUVEAU
     }
 
     /**
-     * Inscription d'un nouveau patient (UC-P01)
+     * Inscription d'un nouveau patient (UC-P01) ⭐ MODIFIÉ AVEC JWT
      *
      * FLOW:
      * 1. Vérifier email unique (RG-01)
      * 2. Créer User (role=PATIENT, password hashé)
      * 3. Créer Patient (lié au User)
-     * 4. Retourner LoginResponse
+     * 4. Générer token JWT ⭐ NOUVEAU
+     * 5. Retourner LoginResponse avec token
      *
      * RÈGLES MÉTIER:
      * - RG-01: Email doit être unique
      * - Password hashé en BCrypt
      * - Patient créé automatiquement
+     * - Token JWT généré automatiquement ⭐ NOUVEAU
      *
      * @param request RegisterRequest (email, password, firstName, lastName, phone)
-     * @return LoginResponse avec infos user + patientId
+     * @return LoginResponse avec infos user + patientId + token JWT
      * @throws EmailAlreadyExistsException si email existe déjà
      */
     @Transactional
@@ -102,9 +111,15 @@ public class AuthService {
         // Sauvegarder Patient
         Patient savedPatient = patientRepository.save(patient);
 
-        // 4. Retourner LoginResponse
+        // ⭐ 4. NOUVEAU : Générer token JWT
+        String token = jwtUtil.generateToken(
+                savedUser.getEmail(), // Subject (email unique)
+                savedUser.getRole().name() // Claim "role" (PATIENT)
+        );
+
+        // 5. Retourner LoginResponse avec token
         return LoginResponse.builder()
-                .token("TODO_JWT_TOKEN") // TODO: Implémenter JWT dans partie Security
+                .token(token) // ⭐ Token JWT réel
                 .userId(savedUser.getId())
                 .email(savedUser.getEmail())
                 .firstName(savedUser.getFirstName())
@@ -116,21 +131,24 @@ public class AuthService {
     }
 
     /**
-     * Connexion (login) pour tous les utilisateurs (UC-P02, UC-D01, UC-A01)
+     * Connexion (login) pour tous les utilisateurs (UC-P02, UC-D01, UC-A01) ⭐
+     * MODIFIÉ AVEC JWT
      *
      * FLOW:
      * 1. Chercher User par email
      * 2. Vérifier password (BCrypt)
      * 3. Mettre à jour lastLoginAt
      * 4. Charger Patient ou Doctor si applicable
-     * 5. Retourner LoginResponse
+     * 5. Générer token JWT ⭐ NOUVEAU
+     * 6. Retourner LoginResponse avec token
      *
      * SÉCURITÉ:
      * - Vérification BCrypt du password
      * - Message d'erreur générique (sécurité)
+     * - Token JWT signé et valide 1h ⭐ NOUVEAU
      *
      * @param request LoginRequest (email, password)
-     * @return LoginResponse avec infos user + patientId/doctorId
+     * @return LoginResponse avec infos user + patientId/doctorId + token JWT
      * @throws InvalidCredentialsException si email ou password incorrect
      */
     @Transactional
@@ -171,9 +189,15 @@ public class AuthService {
                 break;
         }
 
-        // 5. Retourner LoginResponse
+        // ⭐ 5. NOUVEAU : Générer token JWT
+        String token = jwtUtil.generateToken(
+                user.getEmail(), // Subject (email unique)
+                user.getRole().name() // Claim "role" (PATIENT, DOCTOR, ADMIN)
+        );
+
+        // 6. Retourner LoginResponse avec token
         return LoginResponse.builder()
-                .token("TODO_JWT_TOKEN") // TODO: Implémenter JWT dans partie Security
+                .token(token) // ⭐ Token JWT réel
                 .userId(user.getId())
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
